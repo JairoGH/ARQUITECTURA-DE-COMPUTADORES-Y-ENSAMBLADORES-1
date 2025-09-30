@@ -30,6 +30,9 @@ lenHdrAdd      = . - hdr_add
 hdr_sub:                .asciz " -------- SubBytes -------- \n"
 lenHdrSub      = . - hdr_sub
 
+hdr_shift:              .asciz " -------- ShiftRows -------- \n"
+lenHdrShift   = . - hdr_shift
+
 // Errores
 err_txt_empty:          .asciz "Error: el texto no puede estar vacio.\n"
 lenErrTxtEmpty = . - err_txt_empty
@@ -88,6 +91,7 @@ temp_buffer:            .space 64, 0
     .extern subBytes           // Fun/ByteSub.s 
     .extern Sbox               // Libs/Constants.s
     .extern Rcon
+    .extern shiftRows       // Fun/ShiftRow.s
 
 // Exports locales
     .global print_hex_byte
@@ -415,7 +419,7 @@ txt_retry:
 
     // Estado inicial
     ldr x0, =matState
-    ldr x1, =debug_state
+    // ldr x1, =debug_state
     mov x2, lenDebugState
     bl  printMatrix
 
@@ -443,7 +447,7 @@ key_retry:
 
     // Estado tras AddRoundKey
     ldr x0, =matState
-    ldr x1, =debug_state
+    // ldr x1, =debug_state
     mov x2, lenDebugState
     bl  printMatrix
 
@@ -453,7 +457,17 @@ key_retry:
 
     // Estado tras SubBytes
     ldr x0, =matState
-    ldr x1, =debug_state
+    // ldr x1, =debug_state
+    mov x2, lenDebugState
+    bl  printMatrix
+
+    // ---- ShiftRows (Ronda 1) ----
+    print 1, hdr_shift, lenHdrShift
+    bl  shiftRows
+
+    // Estado tras ShiftRows
+    ldr x0, =matState
+    // ldr x1, =debug_state
     mov x2, lenDebugState
     bl  printMatrix
 

@@ -1,5 +1,5 @@
-// ======================= ByteSub.s (AArch64) =======================
-// AES SubBytes: matState[i] = Sbox[ matState[i] ]
+// ======================= ByteSub ========================
+
 
     .text
     .global subBytes

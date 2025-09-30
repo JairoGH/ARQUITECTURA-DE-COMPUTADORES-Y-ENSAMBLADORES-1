@@ -1,6 +1,4 @@
-// ======================= AddRoundKey.s (AArch64) =======================
-// AES AddRoundKey: matState[i] ^= key[i] (i=0..15)
-
+// ======================= AddRoundKey =======================
     .text
     .global addRoundKey
     .type   addRoundKey, %function
