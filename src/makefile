@@ -4,7 +4,7 @@ SRCDIR    := .
 FUNDIR    := Fun
 LIBDIR    := Libs
 
-SRC := main.s Fun/AddRoundKey.s Fun/ByteSub.s Fun/ShiftRow.s Libs/Constants.s
+SRC := main.s Fun/AddRoundKey.s Fun/ByteSub.s Fun/ShiftRow.s Fun/MixColumns.s Libs/Constants.s
 
 OBJ       := $(SRC:.s=.o)
 

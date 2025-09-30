@@ -33,6 +33,9 @@ lenHdrSub      = . - hdr_sub
 hdr_shift:              .asciz " -------- ShiftRows -------- \n"
 lenHdrShift   = . - hdr_shift
 
+hdr_mix:                .asciz " -------- MixColumns -------- \n"
+lenHdrMix      = . - hdr_mix
+
 // Errores
 err_txt_empty:          .asciz "Error: el texto no puede estar vacio.\n"
 lenErrTxtEmpty = . - err_txt_empty
@@ -66,7 +69,6 @@ criptograma:            .space 16, 0
 buffer:                 .space 256, 0
 temp_buffer:            .space 64, 0
 
-
     .section .text
 
 // ====== Syscall Ayuda ======
@@ -74,7 +76,7 @@ temp_buffer:            .space 64, 0
     mov x0, \fd
     ldr x1, =\buffer
     mov x2, \len
-    mov x8, #64                // Escribir #64
+    mov x8, #64                // Escritura
     svc #0
 .endm
 
@@ -82,23 +84,23 @@ temp_buffer:            .space 64, 0
     mov x0, \fd
     ldr x1, =\buffer
     mov x2, \len
-    mov x8, #63                // Lectura #63
+    mov x8, #63                // Lectura
     svc #0
 .endm
 
 // --------------------- Prototipos externos ---------------------
     .extern addRoundKey        // Fun/AddRoundKey.s  
     .extern subBytes           // Fun/ByteSub.s 
+    .extern shiftRows          // Fun/ShiftRow.s
+    .extern mixColumns         // Fun/MixColumns.s
     .extern Sbox               // Libs/Constants.s
     .extern Rcon
-    .extern shiftRows       // Fun/ShiftRow.s
 
 // Exports locales
     .global print_hex_byte
     .global printMatrix
 
 // ============= readTextInput =============
-
     .type   readTextInput, %function
     .global readTextInput
 readTextInput:
@@ -132,7 +134,7 @@ readTextInput:
     sub  x7, x7, #1
     b    3b
 4:
-    // copiar a column-major
+    // copiar a column-major: off = fila + col*4 
     ldr x1, =buffer
     ldr x2, =matState
     mov x8, #0
@@ -140,9 +142,9 @@ readTextInput:
     b.ge 7f
     mov  x9, #4
     udiv x10, x8, x9               // col = i/4
-    msub x11, x10, x9, x8          // fil = i%4
-    mul  x12, x11, x9
-    add  x12, x12, x10             // off = fil*4 + col
+    msub x11, x10, x9, x8          // fila = i%4
+    mul  x12, x10, x9              // col*4
+    add  x12, x11, x12             // off = fila + col*4  
     ldrb w13, [x1, x8]
     strb w13, [x2, x12]
     add  x8, x8, #1
@@ -165,7 +167,6 @@ readTextInput:
     .size readTextInput, (. - readTextInput)
 
 // =========  HEX HELPER =========
-
     .type is_hex_char, %function
 is_hex_char:
     // w4 = char
@@ -198,10 +199,8 @@ hex_char_to_nibble:
     .size hex_char_to_nibble, (. - hex_char_to_nibble)
 
 // ===== convertHexKey: lee hasta 32 hex, permite impar y guarda 16 bytes en 'key' =====
-
     .type   convertHexKey, %function
     .global convertHexKey
-
 convertHexKey:
     stp x29, x30, [sp, #-16]!
     mov x29, sp
@@ -269,12 +268,12 @@ convertHexKey:
     orr w5, w5, w0
     add x7, x7, #1
 
-    // escribir en column-major
+    // off = fila + col*4  
     mov  x9, #4
-    udiv x11, x10, x9
-    msub x12, x11, x9, x10
-    mul  x17, x12, x9
-    add  x17, x17, x11
+    udiv x11, x10, x9              // col
+    msub x12, x11, x9, x10         // fila
+    mul  x17, x11, x9              // col*4
+    add  x17, x12, x17             // fila + col*4
     strb w5, [x2, x17]
 
     add  x10, x10, #1
@@ -332,8 +331,6 @@ print_hex_byte:
     .size print_hex_byte, (. - print_hex_byte)
 
 // ======= printMatrix(ptr, msg, len): imprime 4x4 (por filas) =======
-
-
     .type   printMatrix, %function
     .global printMatrix
 printMatrix:
@@ -351,16 +348,16 @@ printMatrix:
     mov x8, #64
     svc #0
 
-    // 4x4
-    mov x23, #0
+    // 4x4 ( off = fila + col*4)
+    mov x23, #0                       // fila
 1:  cmp x23, #4
     b.ge 3f
-    mov x24, #0
+    mov x24, #0                       // col
 2:  cmp x24, #4
     b.ge 4f
     mov x25, #4
-    mul x25, x23, x25
-    add x25, x25, x24         // off = fila*4 + col
+    mul x25, x24, x25                 // col*4
+    add x25, x25, x23                 // off = fila + col*4 
     ldrb w0, [x20, x25]
     bl  print_hex_byte
     add x24, x24, #1
@@ -419,7 +416,7 @@ txt_retry:
 
     // Estado inicial
     ldr x0, =matState
-    // ldr x1, =debug_state
+    ldr x1, =debug_state
     mov x2, lenDebugState
     bl  printMatrix
 
@@ -442,12 +439,12 @@ key_retry:
     print 1, hdr_add, lenHdrAdd
     ldr x0, =matState          // state*
     ldr x1, =key               // roundKey*
-    mov x2, #0                 // debugFlag (0 = sin XOR detallado)
+    mov x2, #0                 // debugFlag 
     bl  addRoundKey
 
     // Estado tras AddRoundKey
     ldr x0, =matState
-    // ldr x1, =debug_state
+    ldr x1, =debug_state
     mov x2, lenDebugState
     bl  printMatrix
 
@@ -457,7 +454,7 @@ key_retry:
 
     // Estado tras SubBytes
     ldr x0, =matState
-    // ldr x1, =debug_state
+    ldr x1, =debug_state
     mov x2, lenDebugState
     bl  printMatrix
 
@@ -467,7 +464,17 @@ key_retry:
 
     // Estado tras ShiftRows
     ldr x0, =matState
-    // ldr x1, =debug_state
+    ldr x1, =debug_state
+    mov x2, lenDebugState
+    bl  printMatrix
+
+    // ---- MixColumns (Ronda 1) ----
+    print 1, hdr_mix, lenHdrMix
+    bl  mixColumns
+
+    // Estado tras MixColumns
+    ldr x0, =matState
+    ldr x1, =debug_state
     mov x2, lenDebugState
     bl  printMatrix
 
