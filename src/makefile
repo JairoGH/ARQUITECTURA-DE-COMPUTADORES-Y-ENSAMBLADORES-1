@@ -3,12 +3,18 @@ TARGET    := main.elf
 SRCDIR    := .
 FUNDIR    := Fun
 LIBDIR    := Libs
+OBJDIR    := Obj
 
-SRC := main.s Fun/AddRoundKey.s Fun/ByteSub.s Fun/ShiftRow.s Fun/MixColumns.s Libs/Constants.s Libs/KeyExpansion.s
+SRC := main.s \
+       Fun/AddRoundKey.s \
+       Fun/ByteSub.s \
+       Fun/ShiftRow.s \
+       Fun/MixColumns.s \
+       Libs/Constants.s \
+       Libs/KeyExpansion.s
 
-
-
-OBJ       := $(SRC:.s=.o)
+# Convierte cada fuente en obj/<ruta>.o
+OBJ := $(patsubst %.s,$(OBJDIR)/%.o,$(SRC))
 
 UNAME_M   := $(shell uname -m)
 
@@ -33,10 +39,13 @@ QEMU_L    ?= /usr/aarch64-linux-gnu
 
 all: $(TARGET)
 
+# Enlazar todos los objetos en obj/
 $(TARGET): $(OBJ)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-%.o: %.s
+# Regla general: compila .s en obj/
+$(OBJDIR)/%.o: %.s
+	@mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) -o $@ $<
 
 run: $(TARGET)
@@ -62,4 +71,4 @@ bin: $(TARGET)
 	@echo "Generado main.bin"
 
 clean:
-	rm -f $(OBJ) $(TARGET) main.bin
+	rm -rf $(OBJDIR) $(TARGET) main.bin
