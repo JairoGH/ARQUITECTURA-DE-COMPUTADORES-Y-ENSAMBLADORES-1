@@ -6,9 +6,10 @@
     .extern matState
 
 shiftRows:
-    // Prólogo
-    stp x29, x30, [sp, #-32]!
-    mov x29, sp
+    // Prologo
+    stp x29, x30, [sp, #-32]! // Store Pair
+    mov x29, sp              // Move x29 al stack pointer
+    // Guardar registros usados
     stp x19, x20, [sp, #16]
 
     // x19 = &matState

@@ -4,7 +4,7 @@
 menu_title:     .asciz "\n========= MENU =========\n"
 lenMenuTitle = . - menu_title
 
-menu_opts:      .asciz "1) Iniciar Encriptado\n 2) Informacion del Estudiante\n 3) Salir\n Opcion: "
+menu_opts:      .asciz "1) Iniciar Encriptado\n 2) Informacion del Estudiante\n 3) Salir\n Seleccione Una Opcion: "
 lenMenuOpts = . - menu_opts
 
 menu_err:       .asciz "Opcion invalida. Intente de nuevo.\n"

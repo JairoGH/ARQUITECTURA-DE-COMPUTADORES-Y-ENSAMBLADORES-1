@@ -42,6 +42,7 @@ El objetivo es comprender y demostrar el funcionamiento del algoritmo a bajo niv
 ## 📂 Estructura del Proyecto
 
 📄 main.s # Programa principal (flujo AES + I/O)
+
 📁 Fun/
 │ ├── 📄 AddRoundKey.s # XOR estado con subclave
 │ ├── 📄 ByteSub.s # Sustitución S-Box

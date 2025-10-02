@@ -54,6 +54,7 @@ El programa toma como entrada un **texto de 16 caracteres (128 bits)** y una **c
 ## 📂 Estructura del Proyecto
 
 📄 main.s # Programa principal (flujo AES + I/O)
+
 📁 Fun/
 │ ├── 📄 AddRoundKey.s # XOR estado con subclave
 │ ├── 📄 ByteSub.s # Sustitución S-Box
@@ -165,19 +166,19 @@ C5 A7 8F 3D  ...
 ## 🖼️ Capturas de Consola
 
 ### _Menu_
-![captura entrada](./img/captura.png)  
+![Menu](./img/captura.png)  
 
 ### _Ejemplo: Entrada y clave_
-![captura entrada](./img/captura1.png)  
+![Entrada y Clave](./img/captura1.png)  
 
 ### _Ejemplo: Ronda intermedia_
-![captura ronda](./img/captura2.png)  
+![Ronda Intermedia](./img/captura2.png)  
 
 ### _Ejemplo: Resultado final_
-![captura resultado](./img/captura3.png)  
+![Resultado](./img/captura3.png)  
 
 ### _Informacion del Estudiante_
-![captura resultado](./img/captura4.png)  
+![Info Estudiante](./img/captura4.png)  
 
 ---
 
