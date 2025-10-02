@@ -10,6 +10,7 @@ SRC := main.s \
        Fun/ByteSub.s \
        Fun/ShiftRow.s \
        Fun/MixColumns.s \
+	   Fun/Menu.s \
        Libs/Constants.s \
        Libs/KeyExpansion.s
 

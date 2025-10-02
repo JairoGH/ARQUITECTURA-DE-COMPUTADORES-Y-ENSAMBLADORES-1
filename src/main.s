@@ -1,3 +1,4 @@
+
 /*  == main.s === 
     == @author Jairo Gomez ==
     == 201902672 ==
@@ -26,7 +27,6 @@ lenDebugKey = . - debug_key
 hdr_step0:              .asciz "Paso 0: AddRoundKey inicial:\n"
 lenHdrStep0    = . - hdr_step0
 
-// Encabezado genérico de ronda
 hdr_round:              .asciz " ========== RONDA "
 lenHdrRound    = . - hdr_round
 hdr_round_tail:         .asciz " ========== \n"
@@ -70,6 +70,26 @@ lenErrKeyShort = . - err_key_short
 err_key_char:           .asciz "Error: la clave solo admite [0-9A-Fa-f].\n"
 lenErrKeyChar = . - err_key_char
 
+// ---- INFO ESTUDIANTE ----
+student_title:      .asciz "\n===== INFORMACION DEL ESTUDIANTE =====\n"
+lenStudentTitle = . - student_title
+student_name:       .asciz "Nombre : Jairo Gomez\n"
+lenStudentName = . - student_name
+student_carnet:     .asciz "Carnet : 201902672\n"
+lenStudentCarnet = . - student_carnet
+course_info:        .asciz "Curso  : Arquitectura de Computadores y Ensambladores 1 \n"
+lenCourseInfo = . - course_info
+project_info:       .asciz "Proyecto: Algoritmo de encriptacion AES-128 \n"
+lenProjectInfo = . - project_info
+
+// ---- MENSAJE DE TIEMPO ----
+time_msg:           .asciz "Tiempo de ejecucion: "
+lenTimeMsg = . - time_msg
+sec_label:          .asciz " segundos, "
+lenSecLabel = . - sec_label
+nsec_label:         .asciz " nanosegundos\n"
+lenNsecLabel = . - nsec_label
+
 // -----------------------------------------------------------------
 // .bss: buffers y estado
 // -----------------------------------------------------------------
@@ -83,6 +103,14 @@ key:                    .space 16, 0     // Clave activa 128-bit (column-major)
 
 buffer:                 .space 256, 0
 temp_buffer:            .space 64, 0
+
+// ---- timespec para clock_gettime ----
+// struct timespec { i64 tv_sec; i64 tv_nsec; } (AArch64)
+ts_start:               .space 16, 0
+ts_end:                 .space 16, 0
+
+// Buffer para imprimir enteros decimales (hasta 20 dígitos)
+decbuf:                 .space 32, 0
 
 // -----------------------------------------------------------------
     .section .text
@@ -110,6 +138,7 @@ temp_buffer:            .space 64, 0
     .extern mixColumns
     .extern keyExpansion
     .extern roundKeys
+    .extern menu_loop          // <-- del archivo Fun/Menu.s
 
 // ========== Exports locales ==========
     .global print_hex_byte
@@ -119,6 +148,10 @@ temp_buffer:            .space 64, 0
     .global print_round
     .global print_state_hex_string
     .global print_state_ascii_string
+    .global print_student_info
+    .global start_encryption
+    .global print_u64
+    .global print_elapsed_time
 
 // ================================================================
 // Print_round: imprime "===== RONDA n =====\n"  (x0 = n)
@@ -155,7 +188,7 @@ print_round:
     ret
 
 // ================================================================
-// readTextInput: lee texto (1..16 bytes) y lo carga a Matriz Estado(matState)
+// readTextInput: lee texto (1..16 bytes) y lo carga a Estado (column-major)
 // ================================================================
     .type   readTextInput, %function
 readTextInput:
@@ -360,7 +393,7 @@ printMatrix:
 
     mov x0, #1
     mov x1, x21
-    
+    mov x2, x2
     mov x8, #64
     svc #0
 
@@ -493,11 +526,116 @@ print_state_ascii_string:
     ret
 
 // ================================================================
-// _start (Entry Point)
+// print_u64: imprime un entero sin signo x0 en decimal (sin salto).
 // ================================================================
-    .type   _start, %function
-    .global _start
-_start:
+    .type print_u64, %function
+print_u64:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    stp x19, x20, [sp, #16]
+
+    mov x19, x0                // valor
+    ldr x20, =decbuf           // buffer
+    add x20, x20, #31          // puntero al final
+    mov w1, #'0'
+
+    cbz x19, 2f
+1:  mov x2, #10
+    udiv x3, x19, x2
+    msub x4, x3, x2, x19       // x4 = x19 - x3*10 (resto)
+    add w4, w4, #'0'
+    strb w4, [x20], #-1
+    mov x19, x3
+    cbnz x19, 1b
+    b 3f
+2:  strb w1, [x20], #-1
+
+3:  add x20, x20, #1           // primer dígito
+    mov x0, #1
+    mov x1, x20
+    ldr x5, =decbuf
+    add x5, x5, #32
+    sub x2, x5, x20
+    mov x8, #64
+    svc #0
+
+    ldp x19, x20, [sp, #16]
+    ldp x29, x30, [sp], #32
+    ret
+    .size print_u64, (. - print_u64)
+
+// ================================================================
+// print_elapsed_time: "Tiempo de ejecucion: <sec> segundos, <nsec> nanosegundos\n"
+// ================================================================
+    .type print_elapsed_time, %function
+print_elapsed_time:
+    stp x29, x30, [sp, #-32]!
+    mov x29, sp
+    stp x19, x20, [sp, #16]
+
+    ldr x19, =ts_start
+    ldr x20, =ts_end
+
+    ldr x6, [x20]       // sec2
+    ldr x7, [x20, #8]   // nsec2
+    ldr x4, [x19]       // sec1
+    ldr x5, [x19, #8]   // nsec1
+
+    sub  x6, x6, x4     // dsec = sec2 - sec1
+    subs x7, x7, x5     // dnsec = nsec2 - nsec1
+    b.pl 1f
+    // si préstamo: dnsec += 1e9; dsec -= 1
+    ldr  x9, =1000000000
+    add  x7, x7, x9
+    sub  x6, x6, #1
+1:
+    // "Tiempo de ejecucion: "
+    print 1, time_msg, lenTimeMsg
+    // seg
+    mov x0, x6
+    bl  print_u64
+    // " segundos, "
+    print 1, sec_label, lenSecLabel
+    // nseg
+    mov x0, x7
+    bl  print_u64
+    // " nanosegundos\n"
+    print 1, nsec_label, lenNsecLabel
+
+    ldp x19, x20, [sp, #16]
+    ldp x29, x30, [sp], #32
+    ret
+    .size print_elapsed_time, (. - print_elapsed_time)
+
+// ================================================================
+// print_student_info (opción 2 del menú)
+// ================================================================
+    .type   print_student_info, %function
+print_student_info:
+    stp x29, x30, [sp, #-16]!
+    mov x29, sp
+
+    mov x0, #1 ; ldr x1, =student_title ; mov x2, lenStudentTitle ; mov x8, #64 ; svc #0
+    mov x0, #1 ; ldr x1, =student_name  ; mov x2, lenStudentName  ; mov x8, #64 ; svc #0
+    mov x0, #1 ; ldr x1, =student_carnet; mov x2, lenStudentCarnet; mov x8, #64 ; svc #0
+    mov x0, #1 ; ldr x1, =course_info   ; mov x2, lenCourseInfo   ; mov x8, #64 ; svc #0
+    mov x0, #1 ; ldr x1, =project_info  ; mov x2, lenProjectInfo  ; mov x8, #64 ; svc #0
+
+    ldp x29, x30, [sp], #16
+    ret
+    .size print_student_info, (. - print_student_info)
+
+// ================================================================
+// start_encryption: flujo de cifrado (mide tiempo y vuelve al menú)
+// ================================================================
+    .type   start_encryption, %function
+start_encryption:
+    // t0 = clock_gettime
+    mov x0, #1
+    ldr x1, =ts_start
+    mov x8, #113
+    svc #0
+
 txt_retry:
     print 1, msg_txt, lenMsgTxt
     bl   readTextInput
@@ -516,19 +654,19 @@ key_retry:
     cmp  w0, #0
     b.ne key_retry
 
-    // === Generar subclaves (0 a 10) ===
+    // Subclaves
     bl  keyExpansion
 
-    // Mostrar Subclave 0
+    // Subclave 0
     ldr x0, =roundKeys
     ldr x1, =debug_key
     mov x2, lenDebugKey
     bl  printMatrix
 
-    // === Paso 0: AddRoundKey inicial (subclave 0) ===
+    // Paso 0
     print 1, hdr_step0, lenHdrStep0
     ldr x0, =matState
-    ldr x1, =roundKeys              // &roundKeys[0]
+    ldr x1, =roundKeys
     bl  addRoundKey
 
     // Estado tras Paso 0
@@ -537,11 +675,9 @@ key_retry:
     mov x2, lenDebugState
     bl  printMatrix
 
-    // ==================== RONDAS 1 a 9 ====================
+    // Rondas 1..9
     ldr x22, =roundKeys
     mov x21, #1
-
-    // ====================== Bucle Rondas ==================
 round_loop:
     cmp x21, #10
     b.ge last_round
@@ -628,25 +764,43 @@ last_round:
     mov x1, x20
     bl  addRoundKey
 
-    // Print: AddRoundKey Ronda 10 Paso 4:
+    // Estado final
     ldr x0, =matState
     ldr x1, =debug_state
     mov x2, lenDebugState
     bl  printMatrix
 
-    // ====== COPIA RESULTADO FINAL EN MATRIZ ======
+    // Banner resultado y ASCII
     ldr x0, =matState
     ldr x1, =result_banner_top
     mov x2, lenBannerTop
     bl  printMatrix
 
-    // ====== TEXTO EN STRING ======
     print 1, ascii_banner, lenAsciiBanner
     bl  print_state_ascii_string
 
-    // Salida
+    // t1 = clock_gettime
+    mov x0, #1
+    ldr x1, =ts_end
+    mov x8, #113
+    svc #0
+
+    // Imprimir Δt
+    bl  print_elapsed_time
+
+    // Volver al menú (sin pausa aquí)
+    ret
+    .size start_encryption, (. - start_encryption)
+
+// ================================================================
+// _start: Entry point -> entra al menú
+// ================================================================
+    .type   _start, %function
+    .global _start
+_start:
+    bl  menu_loop
+    // Si por alguna razón retorna, salir limpio
     mov x0, #0
     mov x8, #93
     svc #0
-
     .size _start, (. - _start)
