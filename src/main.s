@@ -1,4 +1,3 @@
-
 /*  == main.s === 
     == @author Jairo Gomez ==
     == 201902672 ==
@@ -114,6 +113,32 @@ decbuf:                 .space 32, 0
 
 // -----------------------------------------------------------------
     .section .text
+
+// ====== EXPORTS QUE REQUIERE Menu.s ======
+    .global start_encryption
+    .global print_student_info
+
+// ====== OTRAS EXPORTS LOCALES ======
+    .global print_hex_byte
+    .global printMatrix
+    .global readTextInput
+    .global convertHexKey
+    .global print_round
+    .global print_state_hex_string
+    .global print_state_ascii_string
+    .global print_u64
+    .global print_elapsed_time
+    .global _start
+
+// ====== Funciones externas que llamamos ======
+    .extern addRoundKey
+    .extern subBytes
+    .extern shiftRows
+    .extern mixColumns
+    .extern keyExpansion
+    .extern roundKeys
+    .extern menu_loop          // <-- del archivo Fun/Menu.s
+
 // Syscall helpers
 .macro print fd, buffer, len
     mov x0, \fd
@@ -131,30 +156,8 @@ decbuf:                 .space 32, 0
     svc #0
 .endm
 
-// ========== Funciones externas ==========
-    .extern addRoundKey
-    .extern subBytes
-    .extern shiftRows
-    .extern mixColumns
-    .extern keyExpansion
-    .extern roundKeys
-    .extern menu_loop          // <-- del archivo Fun/Menu.s
-
-// ========== Exports locales ==========
-    .global print_hex_byte
-    .global printMatrix
-    .global readTextInput
-    .global convertHexKey
-    .global print_round
-    .global print_state_hex_string
-    .global print_state_ascii_string
-    .global print_student_info
-    .global start_encryption
-    .global print_u64
-    .global print_elapsed_time
-
 // ================================================================
-// Print_round: imprime "===== RONDA n =====\n"  (x0 = n)
+// print_round: imprime "===== RONDA n =====\n"  (x0 = n)
 // ================================================================
 print_round:
     stp x29, x30, [sp, #-32]!
@@ -388,12 +391,12 @@ printMatrix:
     mov x29, sp
     stp x20, x21, [sp, #16]
 
-    mov x20, x0
-    mov x21, x1
+    mov x20, x0          // ptr matriz
+    mov x21, x1          // msg
 
+    // imprimir encabezado msg (longitud en x2, ya viene del caller)
     mov x0, #1
     mov x1, x21
-    mov x2, x2
     mov x8, #64
     svc #0
 
@@ -437,7 +440,6 @@ print_state_hex_string:
     sub sp, sp, #16
     ldr x20, =matState
     mov x10, #0
-
 1:  cmp x10, #16
     b.ge 3f
 
@@ -474,13 +476,11 @@ print_state_hex_string:
 
     add x10, x10, #1
     b   1b
-
 3:  mov x0, #1
     ldr x1, =newline
     mov x2, #1
     mov x8, #64
     svc #0
-
     add sp, sp, #16
     ldp x29, x30, [sp], #32
     ret
@@ -493,7 +493,6 @@ print_state_ascii_string:
     mov x29, sp
     ldr x20, =matState
     mov x10, #0
-
 1:  cmp x10, #16
     b.ge 2f
 
@@ -515,13 +514,11 @@ print_state_ascii_string:
 
     add x10, x10, #1
     b   1b
-
 2:  mov x0, #1
     ldr x1, =newline
     mov x2, #1
     mov x8, #64
     svc #0
-
     ldp x29, x30, [sp], #16
     ret
 
@@ -534,23 +531,22 @@ print_u64:
     mov x29, sp
     stp x19, x20, [sp, #16]
 
-    mov x19, x0                // valor
-    ldr x20, =decbuf           // buffer
-    add x20, x20, #31          // puntero al final
+    mov x19, x0
+    ldr x20, =decbuf
+    add x20, x20, #31
     mov w1, #'0'
 
     cbz x19, 2f
 1:  mov x2, #10
     udiv x3, x19, x2
-    msub x4, x3, x2, x19       // x4 = x19 - x3*10 (resto)
+    msub x4, x3, x2, x19
     add w4, w4, #'0'
     strb w4, [x20], #-1
     mov x19, x3
     cbnz x19, 1b
     b 3f
 2:  strb w1, [x20], #-1
-
-3:  add x20, x20, #1           // primer dígito
+3:  add x20, x20, #1
     mov x0, #1
     mov x1, x20
     ldr x5, =decbuf
@@ -565,7 +561,7 @@ print_u64:
     .size print_u64, (. - print_u64)
 
 // ================================================================
-// print_elapsed_time: "Tiempo de ejecucion: <sec> segundos, <nsec> nanosegundos\n"
+// print_elapsed_time
 // ================================================================
     .type print_elapsed_time, %function
 print_elapsed_time:
@@ -581,25 +577,19 @@ print_elapsed_time:
     ldr x4, [x19]       // sec1
     ldr x5, [x19, #8]   // nsec1
 
-    sub  x6, x6, x4     // dsec = sec2 - sec1
-    subs x7, x7, x5     // dnsec = nsec2 - nsec1
+    sub  x6, x6, x4     // dsec
+    subs x7, x7, x5     // dnsec
     b.pl 1f
-    // si préstamo: dnsec += 1e9; dsec -= 1
     ldr  x9, =1000000000
     add  x7, x7, x9
     sub  x6, x6, #1
 1:
-    // "Tiempo de ejecucion: "
     print 1, time_msg, lenTimeMsg
-    // seg
     mov x0, x6
     bl  print_u64
-    // " segundos, "
     print 1, sec_label, lenSecLabel
-    // nseg
     mov x0, x7
     bl  print_u64
-    // " nanosegundos\n"
     print 1, nsec_label, lenNsecLabel
 
     ldp x19, x20, [sp, #16]
@@ -626,23 +616,17 @@ print_student_info:
     .size print_student_info, (. - print_student_info)
 
 // ================================================================
-// start_encryption: flujo de cifrado (mide tiempo y vuelve al menú)
+// start_encryption: flujo de cifrado (mide SOLO desde inicio del cifrado)
 // ================================================================
     .type   start_encryption, %function
 start_encryption:
-    // t0 = clock_gettime
-    mov x0, #1
-    ldr x1, =ts_start
-    mov x8, #113
-    svc #0
-
 txt_retry:
     print 1, msg_txt, lenMsgTxt
     bl   readTextInput
     cmp  w0, #0
     b.ne txt_retry
 
-    // Estado inicial
+    // Estado inicial (opcional para depurar)
     ldr x0, =matState
     ldr x1, =debug_state
     mov x2, lenDebugState
@@ -654,14 +638,22 @@ key_retry:
     cmp  w0, #0
     b.ne key_retry
 
-    // Subclaves
+    // Generar subclaves
     bl  keyExpansion
 
-    // Subclave 0
+    // Mostrar Subclave 0 (opcional)
     ldr x0, =roundKeys
     ldr x1, =debug_key
     mov x2, lenDebugKey
     bl  printMatrix
+
+    // ================== INICIO DE MEDICIÓN ==================
+    // ¡Aquí comienza el cifrado! (justo antes del Paso 0)
+    mov x0, #1               // CLOCK_MONOTONIC
+    ldr x1, =ts_start
+    mov x8, #113             // clock_gettime
+    svc #0
+    // ========================================================
 
     // Paso 0
     print 1, hdr_step0, lenHdrStep0
@@ -669,7 +661,7 @@ key_retry:
     ldr x1, =roundKeys
     bl  addRoundKey
 
-    // Estado tras Paso 0
+    // Estado tras Paso 0 (opcional)
     ldr x0, =matState
     ldr x1, =debug_state
     mov x2, lenDebugState
@@ -721,7 +713,7 @@ round_loop:
     mov x1, x20
     bl  addRoundKey
 
-    // Estado tras Paso 4
+    // Estado tras Paso 4 (opcional)
     ldr x0, =matState
     ldr x1, =debug_state
     mov x2, lenDebugState
@@ -779,7 +771,7 @@ last_round:
     print 1, ascii_banner, lenAsciiBanner
     bl  print_state_ascii_string
 
-    // t1 = clock_gettime
+    // =================== FIN DE MEDICIÓN ====================
     mov x0, #1
     ldr x1, =ts_end
     mov x8, #113
@@ -788,15 +780,13 @@ last_round:
     // Imprimir Δt
     bl  print_elapsed_time
 
-    // Volver al menú (sin pausa aquí)
     ret
     .size start_encryption, (. - start_encryption)
 
 // ================================================================
-// _start: Entry point -> entra al menú
+// _start: Entry point -> entra al menú (Menu.s usa start_encryption)
 // ================================================================
     .type   _start, %function
-    .global _start
 _start:
     bl  menu_loop
     // Si por alguna razón retorna, salir limpio
