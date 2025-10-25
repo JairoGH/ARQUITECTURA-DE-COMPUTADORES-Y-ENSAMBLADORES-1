@@ -1,48 +1,48 @@
-// ======================= ShiftRow ========================
-
+// ======================= ShiftRow =======================
     .text
     .global shiftRows
     .type   shiftRows, %function
-    .extern matState
+    .extern matState           
+
+// ShiftRows: realiza las rotaciones por fila (0..3)
 
 shiftRows:
-    // Prologo
-    stp x29, x30, [sp, #-32]! // Store Pair
-    mov x29, sp              // Move x29 al stack pointer
-    // Guardar registros usados
+    // Reserva espacio y guarda FP/LR
+    stp x29, x30, [sp, #-32]!     
+    mov x29, sp
+    // Guarda registros temporales que se usaran dentro de la funcion.
     stp x19, x20, [sp, #16]
 
-    // x19 = &matState
-    ldr x19, =matState
+    // Cargar dirección base del estado
+    ldr x19, =matState            
 
-    // Recorre filas 0..3
-    mov x0, #0                    // x0 = fila (r)
-1:
-    cmp x0, #4
-    b.ge 9f
+    // Bucle, Cada iteración manipula una fila (0..3).
+    mov x0, #0
 
-    // Direcciones de la fila r en column-major:
-    // addr0 = base + (r + 0*4), addr1 = base + (r + 1*4), ...
-    add x9,  x19, x0              // addr0 = base + r
-    add x10, x9,  #4              // addr1 = base + r + 4
-    add x11, x9,  #8              // addr2 = base + r + 8
-    add x12, x9,  #12             // addr3 = base + r + 12
+1:                    
+    cmp x0, #4                    // Comprobar si ya se procesaron las 4 filas
+    b.ge 9f                    
 
-    // Cargar los 4 bytes de la fila (b0, b1, b2, b3)
-    ldrb w3, [x9]                 // b0 = state[r + 0*4]
-    ldrb w4, [x10]                // b1 = state[r + 1*4]
-    ldrb w5, [x11]                // b2 = state[r + 2*4]
-    ldrb w6, [x12]                // b3 = state[r + 3*4]
+    // Calcular las direcciones de los 4 elementos de la fila actual
+    add x9,  x19, x0              // byte fila r, col 0
+    add x10, x9,  #4              // byte fila r, col 1
+    add x11, x9,  #8              // byte fila r, col 2
+    add x12, x9,  #12             // byte fila r, col 3
 
-    // Selección según nº de rotaciones = fila (r)
-    cbz x0, 2f                    // fila 0 -> sin cambios
+    // Cargar los 4 bytes de la fila actual
+    ldrb w3, [x9]                 // b0
+    ldrb w4, [x10]                // b1
+    ldrb w5, [x11]                // b2
+    ldrb w6, [x12]                // b3
+
+    cbz x0, 2f                    // Fila 0 → sin cambio
     cmp x0, #1
-    beq 3f                        // fila 1 -> left 1
+    beq 3f                        // Fila 1 → left 1
     cmp x0, #2
-    beq 4f                        // fila 2 -> left 2
-    // fila 3 -> left 3
+    beq 4f                        // Fila 2 → left 2
 5:
-    // left 3: [b3, b0, b1, b2]
+    // Fila 3: rotar 3 a la izquierda
+    //  [b0, b1, b2, b3] → [b3, b0, b1, b2]
     strb w6, [x9]
     strb w3, [x10]
     strb w4, [x11]
@@ -50,7 +50,8 @@ shiftRows:
     b   8f
 
 2:
-    // Fila 0: no hacer nada  [b0, b1, b2, b3]
+    // Fila 0: sin cambio
+    //  [b0, b1, b2, b3]
     strb w3, [x9]
     strb w4, [x10]
     strb w5, [x11]
@@ -58,7 +59,8 @@ shiftRows:
     b   8f
 
 3:
-    // Fila 1: left 1 -> [b1, b2, b3, b0]
+    // Fila 1: rotar 1 a la izquierda
+    //  [b0, b1, b2, b3] → [b1, b2, b3, b0]
     strb w4, [x9]
     strb w5, [x10]
     strb w6, [x11]
@@ -66,7 +68,8 @@ shiftRows:
     b   8f
 
 4:
-    // Fila 2: left 2 -> [b2, b3, b0, b1]
+    // Fila 2: rotar 2 a la izquierda
+    //  [b0, b1, b2, b3] → [b2, b3, b0, b1]
     strb w5, [x9]
     strb w6, [x10]
     strb w3, [x11]
@@ -74,11 +77,12 @@ shiftRows:
     b   8f
 
 8:
+    // Incrementar fila y continuar con la siguiente
     add x0, x0, #1
     b   1b
 
 9:
-    // Epílogo
+    // Restaurar registros y retornar
     ldp x19, x20, [sp, #16]
     ldp x29, x30, [sp], #32
     ret

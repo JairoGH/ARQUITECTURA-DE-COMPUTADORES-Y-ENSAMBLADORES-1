@@ -51,34 +51,28 @@ El programa toma como entrada un **texto de 16 caracteres (128 bits)** y una **c
 
 ---
 
-## 📂 Estructura del Proyecto
+## 📂 Flujo del Proyecto
 
-📄 main.s # Programa principal (flujo AES + I/O)
 
-📁 Fun/
-│ ├── 📄 AddRoundKey.s # XOR estado con subclave
-│ ├── 📄 ByteSub.s # Sustitución S-Box
-│ ├── 📄 ShiftRow.s # Rotación de filas
-│ ├── 📄 MixColumns.s # Mezcla de columnas
-│ ├── 📄 Menu.s # Menú del Proyecto
+Inicio
+│
+├── Mostrar menú
+│   ├── Opción 1: Iniciar encriptado
+│   │   ├── Leer texto (16 bytes)
+│   │   ├── Leer clave (32 hex)
+│   │   ├── Generar subclaves (KeyExpansion)
+│   │   ├── Aplicar AddRoundKey inicial
+│   │   ├── Repetir 9 rondas:
+│   │   │     ├─ SubBytes
+│   │   │     ├─ ShiftRows
+│   │   │     ├─ MixColumns
+│   │   │     └─ AddRoundKey
+│   │   └── Ronda final (sin MixColumns)
+│   │   └── Mostrar resultado final
+│   └── Opción 2: Información del Estudiante
+│
+└── Fin
 
-📁 Libs/
-│ ├── 📄 Constants.s # Tablas S-Box, Rcon, MixColumn Matrix
-│ ├── 📄 KeyExpansion.s # Generación de subclaves
-
-📁 Obj/
-│ 📁 Fun/
-│ │ ├── 🧩 AddRound.o
-│ │ ├── 🧩 ByteSub.o
-│ │ ├── 🧩 Menu.o
-│ │ ├── 🧩 MixColumns.o
-│ │ ├── 🧩 ShiftRow.o
-│ 📁 Libs/
-│ │ ├── 🧩 Constants.o
-│ │ ├── 🧩 KeyExpansion.o
-
-📁 Test/
-│ ├── 📄 aes128.js # Programa Test en JS
 
 ---
 
@@ -91,7 +85,29 @@ La interfaz es **consola interactiva**. El flujo de ejecución es:
 5. Ejecuta las **10 rondas de AES-128**, mostrando cada transformación.  
 6. Imprime el **resultado final en hexadecimal** y en **ASCII**.  
 
-*(Aquí se puede insertar una imagen de la interfaz de consola mostrando el menú y flujo de ejecución)*
+---
+
+## 💡 Validaciones Implementadas
+
+* Agrega una lista rápida de validaciones de entrada que tu código ya contempla:
+
+* Texto no vacío.
+
+* Longitud máxima de 16 caracteres.
+
+* Clave válida en formato hexadecimal.
+
+* Longitud máxima de 32 caracteres hexadecimales.
+
+* Limpieza de buffer antes de cada lectura.
+
+---
+
+## ⏱️ Medición de Tiempo de Ejecución
+
+Incluye una breve descripción de cómo se calcula el tiempo de encriptado en tu main.s, por ejemplo:
+
+   El tiempo de ejecución del proceso de cifrado se obtiene mediante llamadas al syscall clock_gettime, midiendo la diferencia entre el inicio y el final del ciclo de encriptación. El resultado se muestra en nanosegundos.
 
 ---
 
@@ -102,7 +118,6 @@ La interfaz es **consola interactiva**. El flujo de ejecución es:
 - **MixColumns**: Mezcla de bytes por columna con operaciones en GF(2^8).  
 - **KeyExpansion**: Generación de subclaves a partir de la clave ingresada.  
 
-*(Aquí se pueden insertar diagramas explicativos de cada función para mayor comprensión)*
 
 ---
 
@@ -124,8 +139,6 @@ La interfaz es **consola interactiva**. El flujo de ejecución es:
    ```bash
    make clean
    ```
-
-*(Aquí se puede insertar una captura de consola mostrando la compilación y ejecución exitosa)*
 
 ---
 
@@ -159,8 +172,6 @@ C5 A7 8F 3D  ...
 ÿÿÿÿ....
 ```
 
-*(Aquí se puede insertar una imagen comparando la entrada, clave y el resultado final en consola)*
-
 ---
 
 ## 🖼️ Capturas de Consola
@@ -182,7 +193,15 @@ C5 A7 8F 3D  ...
 
 ---
 
-## ✒️ Autores
+## 📖 Conclusiones
+El proyecto permitió:  
+- Comprender la manipulación de bytes en ARM64.  
+- Implementar operaciones de álgebra en campos de Galois a bajo nivel.  
+- Validar que el flujo del algoritmo AES-128 es reproducible en ensamblador.  
+
+---
+
+## ✒️ Autor
 - **Jairo Adelso Gómez Hernández**  
 - **201902672**  
 - **ACYE1 2S2025**  

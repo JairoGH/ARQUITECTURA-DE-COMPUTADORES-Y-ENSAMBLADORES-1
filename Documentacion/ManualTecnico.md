@@ -722,3 +722,10 @@ El proyecto permitió:
 - Validar que el flujo del algoritmo AES-128 es reproducible en ensamblador.  
 
 ---
+
+## ✒️ Autor
+- **Jairo Adelso Gómez Hernández**  
+- **201902672**  
+- **ACYE1 2S2025**  
+
+---

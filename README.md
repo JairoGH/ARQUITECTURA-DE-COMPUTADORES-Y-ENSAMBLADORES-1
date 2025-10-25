@@ -89,7 +89,7 @@ make clean
 
 ```
 ========= MENU =========
-1) Iniciar Encriptado
+ 1) Iniciar Encriptado
  2) Informacion del Estudiante
  3) Salir
  Opcion: 1
