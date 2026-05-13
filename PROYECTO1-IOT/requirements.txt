@@ -1,0 +1,25 @@
+# ============================================
+# SMART HOME IOT - Dependencias Python
+# ============================================
+# Para Raspberry Pi con sensores IoT
+
+# MQTT Client para comunicación con HiveMQ Cloud
+paho-mqtt==1.6.1
+
+# GPIO Control para Raspberry Pi
+gpiozero==1.6.2
+
+# Sensor DHT11/DHT22 (temperatura y humedad)
+Adafruit-DHT==1.4.0
+
+# Dependencias del sistema (se instalan automáticamente)
+# RPi.GPIO>=0.7.0  # Se instala con gpiozero en Raspberry Pi
+
+# Librerías estándar (incluidas en Python)
+# - ssl
+# - random
+# - time
+# - json
+# - subprocess
+# - threading
+# - datetime
